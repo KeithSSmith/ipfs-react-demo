@@ -1,68 +1,103 @@
 This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
 
-## Available Scripts
+# React Webhosting on IPFS
+This project followed the following guide to get a simple React Website hosted on IPFS: https://medium.com/elbstack/decentralized-hosting-of-a-static-react-app-with-ipfs-aae11b860f5e
 
-In the project directory, you can run:
+## IPFS on Docker
+```bash
+export ipfs_staging=~/ipfs/staging
+export ipfs_data=~/ipfs/data
 
-### `npm start`
+docker run -d --name ipfs_host \
+ -v $ipfs_staging:/export \
+ -v $ipfs_data:/data/ipfs \
+ -p 4001:4001 \
+ -p 127.0.0.1:8080:8080 \
+ -p 127.0.0.1:5001:5001 \
+ ipfs/go-ipfs:latest
 
-Runs the app in the development mode.<br>
-Open [http://localhost:3000](http://localhost:3000) to view it in the browser.
+docker exec ipfs_host ipfs swarm peers
+```
 
-The page will reload if you make edits.<br>
-You will also see any lint errors in the console.
+### Firewall Port Forwarding
+In order to talk to other IPFS nodes it will be required to port forward the port you choose above that maps to the Docker port 4001. In our case it is the same so 4001 is port forwarded to ensure it can communicate with the rest of the IPFS network.
 
-### `npm test`
+### IPFS Bash Function
+Setup a local alias to call the Docker container like it was a local command.
+```bash
+echo 'function ipfs() {
+  docker exec ipfs_host ipfs "$@"
+}' >> ~/.bash_aliases
 
-Launches the test runner in the interactive watch mode.<br>
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+. ~/.bashrc
+ipfs ls QmZ5eFjjYFA7WTZhFQzko9rm9K2hUqsrB8Z81XJjtde4x3
+```
 
-### `npm run build`
+## Create React App
+```bash
+npx create-react-app ipfs-react-demo
+cd ipfs-react-demo
+yarn start
+```
+At this point you can edit App.js to your hearts content, this repo has kept it simple and only added words at the top of the page. Once complete you will need to build the react application.
 
-Builds the app for production to the `build` folder.<br>
-It correctly bundles React in production mode and optimizes the build for the best performance.
+### Edit package.json
+Add `"homepage": "./",`
 
-The build is minified and the filenames include the hashes.<br>
-Your app is ready to be deployed!
+### Build Project
+```bash
+yarn build
+```
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+## Synchronize Files and Commit to IPFS
+The second part of this section applies to everyone while the first section applies to my situation which is developing on a remote server and synchronizing files to node hosting the IPFS Docker instance.
 
-### `npm run eject`
+### PyCharm Deployment
+File -> Settings -> Build, Execution, Deployment -> Deployment
 
-**Note: this is a one-way operation. Once you `eject`, you can’t go back!**
+Configure SFTP connection with remote host.
+Map the local path and the remote path.
 
-If you aren’t satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+Under options, set the files to ignore and change the upload preferences to Always or On Save.
 
-Instead, it will copy all the configuration files and the transitive dependencies (Webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you’re on your own.
+### Commit to IPFS
+Once the files and directories have been synchronized it is now time to add the directory to IPFS; NOTE: it is always recommended to uplaod a directory for websites hosted on IPFS even if it is just and index.html file.
 
-You don’t have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn’t feel obligated to use this feature. However we understand that this tool wouldn’t be useful if you couldn’t customize it when you are ready for it.
+```bash
+cp -r <base_directory>/ipfs-react-demo/build $ipfs_staging
+ipfs add -r /export/build
+```
 
-## Learn More
+### Retrieve IPFS Hash
+Once the directory has been added to IPFS it will generate a hash that looks like the following.
+```
+$ ipfs add -r /export/build
+added QmcPdq8ocoPACiSR6u3WWFubDEsre6a2pG7tBz9dru4AU8 build/asset-manifest.json
+ 4.59 KiB / ? added QmcFc6EPhavNSfdjG8byaxxV6KtHZvnDwYXLHvyJQPp3uN build/favicon.ico
+added Qmc1jd9uf5DmSqRcjsq5iUJ5NswcPE2jCYbzLJ8fhbbpmd build/index.html
+ 7.53 KiB / 478.59 KiB    1.57%added QmfKqCqGsesAk1JhovJCQajk8awxuqjDPc8QnHa39oDx6g build/manifest.json
+ 7.53 KiB / 478.59 KiB    1.57%added QmZHHbsBeUVuNPhAniFBQGnssWbKVoCoS6YZi6rVGv8CQY build/precache-manifest.c75e6fbb8aeee470ab7435fbd601c351.js
+ 9.67 KiB / 478.59 KiB    2.02%added QmPFhRY5UiP77Jn6P87KjV5RKAXM2KzePf29vRVR35C25d build/service-worker.js
+ 9.67 KiB / 478.59 KiB    2.02%added QmUs7uyggmSQxBrEGUiYY4khG99nxr3wvtJG6acrdwm6Yq build/static/css/main.584f321a.chunk.css
+added QmSWcsYLnHUxV4YStPcdJR7u83xpp9iiy3yfv8gYqGbURK build/static/css/main.584f321a.chunk.css.map
+ 127.09 KiB / 478.59 KiB   26.56%added QmVMiAjUhVZbn4PDymNu8QrK3NsDgJRRvZA5q7UvV5rFFV build/static/js/2.b41502e9.chunk.js
+ 459.60 KiB / 478.59 KiB   96.03%added QmP8p6ExszCZ3Z3aFbJ6kEeCnPDPgQ8R4EwCepVCPby3uv build/static/js/2.b41502e9.chunk.js.map
+ 459.60 KiB / 478.59 KiB   96.03%added QmPfCyfyLoZT398jXjJgbfdxwa3d9N91Lg4T8XdqgkSenb build/static/js/main.493cf53a.chunk.js
+ 466.71 KiB / 478.59 KiB   97.52%added QmYStf8YHRb5iE5nYpZ42Ei6K1zDyE2TbND1knebkGy2qk build/static/js/main.493cf53a.chunk.js.map
+added QmZr8DQ21vnJSnkQhnanHM5P8fppSCt8BHAkoEqhA7S5sd build/static/js/runtime~main.d653cc00.js
+ 468.18 KiB / 478.59 KiB   97.82%added QmbwbsrQmRY31cCJ4dXkminAPasSe1UKSZ9mqwv2sL1u5P build/static/js/runtime~main.d653cc00.js.map
+ 478.59 KiB / 478.59 KiB  100.00%added QmT5m9wx8ChkC31Vnx175ShPzMpcB85AS989Hc2dPpsZsZ build/static/media/logo.5d5d9eef.svg
+ 478.59 KiB / 478.59 KiB  100.00%added QmNgC2EvVir5tC7jjdwHecdszpnpFPNd5M5tp42TtWYjpF build/static/css
+ 478.59 KiB / 478.59 KiB  100.00%added QmXqv58fNVne7xGUSECfZvw7bb6dK5v92yfyVgZQMtqjXv build/static/js
+added QmUCWQYtD8otdHmda45N9svVo67nthP84heyUFydhPPzyK build/static/media
+ 478.59 KiB / 478.59 KiB  100.00%added QmcwHrFmu3qMK8VE3CscShr93XPxe3pcGeEpqDiCwcy5PG build/static
+added QmZ5eFjjYFA7WTZhFQzko9rm9K2hUqsrB8Z81XJjtde4x3 build
+```
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+The last line shows us the build hash and now we can access it via an endpoint, all of the following should be accessible (NOTE: A TODO is front this via a website, ideally with Cloudflare and TLS enabled: https://developers.cloudflare.com/distributed-web/ipfs-gateway/connecting-website/).
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+http://localhost:8080/ipfs/QmZ5eFjjYFA7WTZhFQzko9rm9K2hUqsrB8Z81XJjtde4x3
+https://ipfs.io/ipfs/QmZ5eFjjYFA7WTZhFQzko9rm9K2hUqsrB8Z81XJjtde4x3/
+https://cloudflare-ipfs.com/ipfs/QmZ5eFjjYFA7WTZhFQzko9rm9K2hUqsrB8Z81XJjtde4x3/
 
-### Code Splitting
-
-This section has moved here: https://facebook.github.io/create-react-app/docs/code-splitting
-
-### Analyzing the Bundle Size
-
-This section has moved here: https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size
-
-### Making a Progressive Web App
-
-This section has moved here: https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app
-
-### Advanced Configuration
-
-This section has moved here: https://facebook.github.io/create-react-app/docs/advanced-configuration
-
-### Deployment
-
-This section has moved here: https://facebook.github.io/create-react-app/docs/deployment
-
-### `npm run build` fails to minify
-
-This section has moved here: https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify
+Enjoy!
